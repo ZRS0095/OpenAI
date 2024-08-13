@@ -1,0 +1,36 @@
+from openai import OpenAI
+
+# Initialize the OpenAI client
+client = OpenAI()
+
+def generate_response(conversation_history):
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",  # Use the specified model
+        messages=conversation_history  # Pass the entire conversation history
+    )
+    # Access the message content correctly
+    return response.choices[0].message.content
+
+def chat_with_bot():
+    print("Hi, Ruslan!")
+    conversation_history = [{"role": "system", "content": "You are a helpful assistant."}]
+
+    while True:
+        user_input = input("You: ")
+        if user_input.lower() == 'exit':
+            print("Goodbye!")
+            break
+
+        # Append user input to the conversation history
+        conversation_history.append({"role": "user", "content": user_input})
+
+        # Generate bot response
+        response = generate_response(conversation_history)
+
+        # Append bot response to the conversation history
+        conversation_history.append({"role": "assistant", "content": response})
+
+        print(f"Bot: {response}")
+
+if __name__ == "__main__":
+    chat_with_bot()

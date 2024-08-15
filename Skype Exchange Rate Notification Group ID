@@ -1,0 +1,17 @@
+from skpy import Skype
+
+# Ваши учетные данные Skype
+skype_username = "skype_username"
+skype_password = "skype_password"
+
+sk = Skype(skype_username, skype_password)
+
+# Получаем список всех чатов
+chats = sk.chats.recent()
+
+# Выводим ID всех чатов
+for chat_id, chat in chats.items():
+    if hasattr(chat, 'topic'):
+        print(f"Group Chat ID: {chat_id}, Topic: {chat.topic}")
+    else:
+        print(f"Single Chat ID: {chat_id}, Contact: {chat.userId}")

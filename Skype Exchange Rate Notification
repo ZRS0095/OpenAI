@@ -1,0 +1,89 @@
+import requests
+from bs4 import BeautifulSoup
+import re
+from skpy import Skype
+
+def scrape_currency_rates(currency):
+    if currency == "usd":
+        url = 'https://minfin.com.ua/ua/currency/auction/usd/buy/kharkov/'
+        currency_name = "долар"
+    elif currency == "eur":
+        url = 'https://minfin.com.ua/ua/currency/auction/eur/buy/kharkov/'
+        currency_name = "євро"
+    else:
+        print("Unsupported currency type")
+        return
+
+    response = requests.get(url)
+    if response.status_code != 200:
+        print(f"Не вдалося отримати сторінку для {currency_name}")
+        return
+
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    try:
+        purchase_label = soup.find('div', string='Середня купівля')
+        sale_label = soup.find('div', string='Середній продаж')
+
+        if not purchase_label or not sale_label:
+            print(f"Не вдалося знайти елементи з текстом 'Середня купівля' або 'Середній продаж' для {currency_name}")
+            return
+
+        purchase_element = purchase_label.find_next('span').text.strip()
+        sale_element = sale_label.find_next('span').text.strip()
+    except AttributeError as e:
+        print(f"Не вдалося знайти потрібні дані на сторінці для {currency_name}: {e}")
+        return
+
+    try:
+        purchase_match = re.search(r'\d+,\d+', purchase_element)
+        sale_match = re.search(r'\d+,\d+', sale_element)
+
+        if not purchase_match or not sale_match:
+            print(f"Не вдалося знайти числові значення в тексті для {currency_name}")
+            return
+
+        average_purchase = float(purchase_match.group(0).replace(',', '.'))
+        average_sale = float(sale_match.group(0).replace(',', '.'))
+    except ValueError as e:
+        print(f"Не вдалося обробити числові значення для {currency_name}: {e}")
+        return
+
+    average_rate = (average_purchase + average_sale) / 2
+
+    output_file_path = f'C:/Users/oit_serg/Downloads/Skype_Currency/Valuta_course_{currency}.txt'
+    with open(output_file_path, 'w', encoding='utf-8') as file:
+        file.write(f"Середня купівля ({currency_name}): {average_purchase}\n")
+        file.write(f"Середній продаж ({currency_name}): {average_sale}\n")
+        file.write(f"Середній курс ({currency_name}): {average_rate:.2f}\n")
+
+    print(f"Дані збережено у файлі {output_file_path}")
+
+    return output_file_path
+
+
+def send_skype_message(file_path, skype_username, skype_password, group_chat_id):
+    with open(file_path, 'r', encoding='utf-8') as file:
+        file_content = file.read()
+
+    sk = Skype(skype_username, skype_password)
+
+    group_chat = sk.chats.chat(group_chat_id)
+
+    group_chat.sendMsg(file_content)
+
+    print("Повідомлення надіслано в групу успішно!")
+
+
+if __name__ == '__main__':
+    skype_username = "skype_username"
+    skype_password = "skype_password"
+    group_chat_id = "group_chat_id"
+
+    usd_file_path = scrape_currency_rates("usd")
+    if usd_file_path:
+        send_skype_message(usd_file_path, skype_username, skype_password, group_chat_id)
+
+    eur_file_path = scrape_currency_rates("eur")
+    if eur_file_path:
+        send_skype_message(eur_file_path, skype_username, skype_password, group_chat_id)

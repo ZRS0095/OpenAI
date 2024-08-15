@@ -1,0 +1,75 @@
+import requests
+from bs4 import BeautifulSoup
+from datetime import datetime, timedelta
+
+
+def scrape_exchange_rates(currency_code, output_file_path):
+    # Calculate the correct date based on the current day of the week
+    today = datetime.now()
+
+    if today.weekday() == 0:  # Monday
+        target_date = today - timedelta(days=3)  # Go back to Friday
+    else:
+        target_date = today - timedelta(days=1)  # Go back to the previous day
+
+    date_str = target_date.strftime('%d-%m-%Y')
+
+    # Construct the URL using the calculated date
+    url = f'https://minfin.com.ua/currency/mb/archive/{currency_code}/{date_str}/'
+
+    # Request the page content
+    response = requests.get(url)
+    if response.status_code != 200:
+        print(f"Failed to retrieve the page for {currency_code.upper()}. Status code: {response.status_code}")
+        return None
+
+    # Parse the HTML content
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    try:
+        # Locate the row by searching for the time "17:00"
+        time_block = soup.find('td', string='17:00')
+        if time_block is None:
+            print(f"Failed to locate the time block for '17:00' in {currency_code.upper()}.")
+            return None
+
+        # Extract the subsequent exchange rates from the correct table cells
+        rate_1 = time_block.find_next('td').text.strip()
+        rate_2 = time_block.find_next('td').find_next('td').text.strip()
+
+        # Convert rates to float for calculation
+        rate_1_value = float(rate_1.replace(',', '.'))
+        rate_2_value = float(rate_2.replace(',', '.'))
+
+        # Calculate the average of the two rates
+        average_rate = (rate_1_value + rate_2_value) / 2
+
+        return currency_code.upper(), rate_1, rate_2, average_rate
+
+    except AttributeError:
+        print(f"Failed to locate the necessary data on the page for {currency_code.upper()}.")
+        return None
+
+
+if __name__ == '__main__':
+    today = datetime.now()
+
+    # Check if today is Saturday (5) or Sunday (6)
+    if today.weekday() in [5, 6]:
+        print("It's the weekend. The script will not run.")
+    else:
+        output_file_path = 'C:/Users/ZRS/Downloads/exchange_rates.txt'
+
+        # List of currency codes to scrape
+        currencies = ['usd', 'eur']
+
+        with open(output_file_path, 'w', encoding='utf-8') as file:
+            for currency in currencies:
+                result = scrape_exchange_rates(currency, output_file_path)
+                if result:
+                    currency_code, rate_1, rate_2, average_rate = result
+                    file.write(f"{currency_code} Rate 1: {rate_1}\n")
+                    file.write(f"{currency_code} Rate 2: {rate_2}\n")
+                    file.write(f"{currency_code} Average Rate: {average_rate:.4f}\n\n")
+
+        print(f"Data for {', '.join(currencies).upper()} saved to {output_file_path}")
